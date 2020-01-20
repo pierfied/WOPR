@@ -6,8 +6,6 @@ from .message_interface import MessageInterface
 
 
 class Client(MessageInterface):
-    job_ids = []
-
     def __init__(self, address, port):
         self.address = address
         self.port = port
@@ -20,16 +18,17 @@ class Client(MessageInterface):
 
     def submit_job(self, func, args):
         # Create and submit each job to the head.
+        job_ids = []
         for arg in args:
             job_id = np.random.standard_normal()
             job = Job(job_id, func, arg)
             self.send_msg(pa.serialize(job).to_buffer())
 
-            self.job_ids.append(job_id)
+            job_ids.append(job_id)
 
-        return self.get_results()
+        return self.get_results(job_ids)
 
-    def get_results(self):
+    def get_results(self, job_ids):
         # Get the result for each job from the head.
         results_dict = {}
         for i in range(len(self.job_ids)):
@@ -39,8 +38,8 @@ class Client(MessageInterface):
 
         # Sort the results.
         results = []
-        for i in range(len(self.job_ids)):
-            results.append(results_dict[self.job_ids[i]])
+        for i in range(len(job_ids)):
+            results.append(results_dict[job_ids[i]])
 
         return results
 
