@@ -33,16 +33,23 @@ class Worker(MessageInterface):
         # Listen for new jobs.
         while True:
             data = self.recv_msg()
-            job = pa.deserialize(memoryview(data))
-            self.job_queue.put(job)
+            self.job_queue.put(data)
 
     def worker_process(self):
         while True:
+            # Notify the head we're ready to receive a job.
+            self.send_msg(b'AVAIL')
+
             # Wait for a new job.
-            job = self.job_queue.get()
+            data = self.job_queue.get()
+            job = pa.deserialize(memoryview(data))
 
             # Run the function.
             job['result'] = job['func'](job['args'])
+
+            # Delete the now unnecessary function and arguments.
+            # del job['func']
+            # del job['args']
 
             # Send the result back to the head.
             self.send_msg(pa.serialize(job).to_buffer())

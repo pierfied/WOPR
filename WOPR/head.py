@@ -52,13 +52,17 @@ class Head(MessageInterface):
             job_info = self.job_queue.popleft()
             worker = self.avail_workers.popleft()
 
-            worker.send_msg(job_info['job'])
+            worker.send_msg(pa.serialize(job_info['job']).to_buffer())
 
     def client_manager(self, client):
         # Listen for new jobs from the client and add to the queue.
         while True:
-            # Get the job from the client.
-            job = pa.deserialize(memoryview(client.recv_msg()))
+            try:
+                # Get the job from the client.
+                job = pa.deserialize(memoryview(client.recv_msg()))
+            except:
+                # Kill the thread if the client disconnects.
+                break
 
             # Create the info for the job and add to the queue as well as adding to the jobs in progress.
             job_info = {'client': client, 'job': job}
