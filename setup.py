@@ -8,5 +8,6 @@ setup(
     license='',
     author='Pier Fiedorowicz',
     author_email='',
-    description=''
+    description='',
+    scripts=['bin/wopr']
 )
