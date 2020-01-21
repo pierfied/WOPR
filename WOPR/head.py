@@ -63,7 +63,7 @@ class Head(MessageInterface):
             # Create the info for the job and add to the queue as well as adding to the jobs in progress.
             job_info = {'client': client, 'job': job}
             self.job_queue.append(job_info)
-            self.jobs_in_prog[job.job_id] = job_info
+            self.jobs_in_prog[job['job_id']] = job_info
 
             # Run the job manager to check if the new job can be run.
             self.run_job_manager()
@@ -81,6 +81,6 @@ class Head(MessageInterface):
             else:
                 # If returning a result get the client for the corresponding job id and forward the message.
                 job = pa.deserialize(memoryview(msg))
-                job_info = self.jobs_in_prog[job.job_id]
+                job_info = self.jobs_in_prog[job['job_id']]
                 job_info['client'].send_msg(msg)
-                del self.jobs_in_prog[job.job_id]
+                del self.jobs_in_prog[job['job_id']]

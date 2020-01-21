@@ -16,12 +16,13 @@ class Client(MessageInterface):
         super().__init__(self.head)
         self.send_msg(b'CLIENT')
 
-    def submit_job(self, func, args):
+    def submit_job(self, func, args_list):
         # Create and submit each job to the head.
         job_ids = []
-        for arg in args:
+        for args in args_list:
             job_id = np.random.standard_normal()
-            job = Job(job_id, func, arg)
+            # job = Job(job_id, func, arg)
+            job = {'job_id': job_id, 'func': func, 'args': args}
             self.send_msg(pa.serialize(job).to_buffer())
 
             job_ids.append(job_id)
@@ -31,10 +32,10 @@ class Client(MessageInterface):
     def get_results(self, job_ids):
         # Get the result for each job from the head.
         results_dict = {}
-        for i in range(len(self.job_ids)):
+        for i in range(len(job_ids)):
             data = self.recv_msg()
             job = pa.deserialize(memoryview(data))
-            results_dict[job.job_id] = job.result
+            results_dict[job['job_id']] = job['result']
 
         # Sort the results.
         results = []

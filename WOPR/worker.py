@@ -42,7 +42,7 @@ class Worker(MessageInterface):
             job = self.job_queue.get()
 
             # Run the function.
-            job.result = job.func(job.args)
+            job['result'] = job['func'](job['args'])
 
             # Send the result back to the head.
             self.send_msg(pa.serialize(job).to_buffer())
