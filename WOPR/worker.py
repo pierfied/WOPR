@@ -1,11 +1,14 @@
 import socket
 import multiprocessing
 import pyarrow as pa
+import threading
 from .message_interface import MessageInterface
 
 
 class Worker(MessageInterface):
     job_queue = multiprocessing.Queue()
+    results_queue = multiprocessing.Queue()
+    avail_queue = multiprocessing.Queue()
 
     def __init__(self, address, port, num_workers):
         self.address = address
@@ -18,8 +21,10 @@ class Worker(MessageInterface):
         super().__init__(self.head)
         self.send_msg(b'WORKER')
 
-        # Start the job manager.
-        self.job_manager()
+        # Start the job manager, availability manager, and results manager.
+        threading.Thread(target=self.job_manager).start()
+        threading.Thread(target=self.avail_manager).start()
+        self.results_manager()
 
     def job_manager(self):
         # Start the worker processes.
@@ -35,10 +40,20 @@ class Worker(MessageInterface):
             data = self.recv_msg()
             self.job_queue.put(data)
 
+    def results_manager(self):
+        while True:
+            result = self.results_queue.get()
+            self.send_msg(result)
+
+    def avail_manager(self):
+        while True:
+            self.avail_queue.get()
+            self.send_msg(b'AVAIL')
+
     def worker_process(self):
         while True:
-            # Notify the head we're ready to receive a job.
-            self.send_msg(b'AVAIL')
+            # Notify that we're ready to receive jobs.
+            self.avail_queue.put(None)
 
             # Wait for a new job.
             data = self.job_queue.get()
@@ -48,8 +63,7 @@ class Worker(MessageInterface):
             job['result'] = job['func'](job['args'])
 
             # Delete the now unnecessary function and arguments.
-            # del job['func']
-            # del job['args']
+            del job['func']
+            del job['args']
 
-            # Send the result back to the head.
-            self.send_msg(pa.serialize(job).to_buffer())
+            self.results_queue.put(pa.serialize(job).to_buffer())
