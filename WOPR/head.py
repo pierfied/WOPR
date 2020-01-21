@@ -75,16 +75,21 @@ class Head(MessageInterface):
     def worker_manager(self, worker):
         # Listen for messages from the worker.
         while True:
-            msg = worker.recv_msg()
+            try:
+                # Get the message from the worker.
+                msg = worker.recv_msg()
 
-            # Check if the worker is available to receive jobs or is returning a result.
-            if msg == b'AVAIL':
-                # If available add to the list of available workers and run the job manager.
-                self.avail_workers.append(worker)
-                self.run_job_manager()
-            else:
-                # If returning a result get the client for the corresponding job id and forward the message.
-                job = pa.deserialize(memoryview(msg))
-                job_info = self.jobs_in_prog[job['job_id']]
-                job_info['client'].send_msg(msg)
-                del self.jobs_in_prog[job['job_id']]
+                # Check if the worker is available to receive jobs or is returning a result.
+                if msg == b'AVAIL':
+                    # If available add to the list of available workers and run the job manager.
+                    self.avail_workers.append(worker)
+                    self.run_job_manager()
+                else:
+                    # If returning a result get the client for the corresponding job id and forward the message.
+                    job = pa.deserialize(memoryview(msg))
+                    job_info = self.jobs_in_prog[job['job_id']]
+                    job_info['client'].send_msg(msg)
+                    del self.jobs_in_prog[job['job_id']]
+            except:
+                # Kill the thread if the worker or client disconnects.
+                break

@@ -20,7 +20,7 @@ class Client(MessageInterface):
         # Create and submit each job to the head.
         job_ids = []
         for args in args_list:
-            job_id = np.random.standard_normal()
+            job_id = np.random.uniform()
             # job = Job(job_id, func, arg)
             job = {'job_id': job_id, 'func': func, 'args': args}
             self.send_msg(pa.serialize(job).to_buffer())
@@ -30,12 +30,16 @@ class Client(MessageInterface):
         return self.get_results(job_ids)
 
     def get_results(self, job_ids):
-        # Get the result for each job from the head.
+        # Get the result for each job from the head and throw an error if an error occurred.
         results_dict = {}
         for i in range(len(job_ids)):
             data = self.recv_msg()
             job = pa.deserialize(memoryview(data))
-            results_dict[job['job_id']] = job['result']
+            if job['err'] is None:
+                results_dict[job['job_id']] = job['result']
+            else:
+                print('Error in job ' + str(job['job_id']))
+                raise Exception(job['err'])
 
         # Sort the results.
         results = []

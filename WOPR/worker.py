@@ -59,8 +59,13 @@ class Worker(MessageInterface):
             data = self.job_queue.get()
             job = pa.deserialize(memoryview(data))
 
-            # Run the function.
-            job['result'] = job['func'](job['args'])
+            try:
+                # Run the function.
+                job['result'] = job['func'](job['args'])
+                job['err'] = None
+            except Exception as err:
+                # If an error occurs, save it.
+                job['err'] = str(err)
 
             # Delete the now unnecessary function and arguments.
             del job['func']
