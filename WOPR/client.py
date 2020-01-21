@@ -44,4 +44,5 @@ class Client(MessageInterface):
         return results
 
     def close(self):
+        # Close the connection to the head.
         self.head.close()
