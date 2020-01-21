@@ -26,6 +26,7 @@ class Worker(MessageInterface):
         worker_processes = []
         for i in range(self.num_workers):
             worker_process = multiprocessing.Process(target=self.worker_process)
+            worker_process.daemon = True
             worker_process.start()
             worker_processes.append(worker_process)
 

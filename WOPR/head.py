@@ -19,6 +19,9 @@ class Head(MessageInterface):
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         super().__init__(self.server)
 
+        # Start accepting connections from clients and workers.
+        self.start_server()
+
     def start_server(self):
         # Bind the socket.
         self.server.bind((self.host, self.port))
