@@ -74,8 +74,12 @@ class Head(MessageInterface):
                 for i, job_info in enumerate(self.job_queue):
                     if job_info['client'] != client:
                         new_job_queue.append(job_info)
-                        del self.jobs_in_prog[job_info['job']['job_id']]
                 self.job_queue = deque(new_job_queue)
+
+                # Remove this client's jobs from the dict of jobs in progress.
+                for job_id in self.jobs_in_prog.copy():
+                    if self.jobs_in_prog[job_id]['client'] == client:
+                        del self.jobs_in_prog[job_id]
 
                 # Kill the thread if the client disconnects.
                 break
@@ -116,7 +120,8 @@ class Head(MessageInterface):
             except:
                 # If the worker disconnects, resubmit all jobs that this worker was working on.
                 for job_info in self.assigned_jobs[worker]:
-                    self.job_queue.appendleft(job_info)
+                    if job_info['job']['job_id'] in self.jobs_in_prog:
+                        self.job_queue.appendleft(job_info)
 
                 del self.assigned_jobs[worker]
 
