@@ -33,8 +33,19 @@ class Client(MessageInterface):
         # Get the result for each job from the head and throw an error if an error occurred.
         results_dict = {}
         for i in range(len(job_ids)):
-            data = self.recv_msg()
-            job = pa.deserialize(memoryview(data))
+            # Try to receive data and throw an error if disconnected or if an error occurred running the job.
+            try:
+                # data = self.recv_msg()
+
+                job = pa.deserialize(memoryview(self.recv_msg()))
+                # if job['err'] is None:
+                #     results_dict[job['job_id']] = job['result']
+                # else:
+                #     print('Error in job ' + str(job['job_id']))
+                #     raise Exception(job['err'])
+            except:
+                raise Exception('Lost connection to the head.')
+
             if job['err'] is None:
                 results_dict[job['job_id']] = job['result']
             else:

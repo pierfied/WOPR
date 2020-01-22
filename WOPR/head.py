@@ -11,6 +11,7 @@ class Head(MessageInterface):
     job_queue = deque()
     avail_workers = deque()
     jobs_in_prog = {}
+    assigned_jobs = {}
 
     def __init__(self, port):
         # Create the server socket.
@@ -37,6 +38,8 @@ class Head(MessageInterface):
                 self.workers.append(conn)
                 print(addr, 'has connected as WORKER.')
 
+                self.assigned_jobs[conn] = []
+
                 thread = threading.Thread(target=self.worker_manager, args=(conn,))
                 thread.start()
             else:
@@ -52,7 +55,12 @@ class Head(MessageInterface):
             job_info = self.job_queue.popleft()
             worker = self.avail_workers.popleft()
 
-            worker.send_msg(pa.serialize(job_info['job']).to_buffer())
+            # Try to send the job to the worker. If it fails, resubmit the job to the job queue.
+            try:
+                worker.send_msg(pa.serialize(job_info['job']).to_buffer())
+                self.assigned_jobs[worker].append(job_info)
+            except:
+                self.job_queue.appendleft(job_info)
 
     def client_manager(self, client):
         # Listen for new jobs from the client and add to the queue.
@@ -61,6 +69,14 @@ class Head(MessageInterface):
                 # Get the job from the client.
                 job = pa.deserialize(memoryview(client.recv_msg()))
             except:
+                # If the client disconnects, remove all jobs from the queue that this client created.
+                new_job_queue = []
+                for i, job_info in enumerate(self.job_queue):
+                    if job_info['client'] != client:
+                        new_job_queue.append(job_info)
+                        del self.jobs_in_prog[job_info['job']['job_id']]
+                self.job_queue = deque(new_job_queue)
+
                 # Kill the thread if the client disconnects.
                 break
 
@@ -88,8 +104,21 @@ class Head(MessageInterface):
                     # If returning a result get the client for the corresponding job id and forward the message.
                     job = pa.deserialize(memoryview(msg))
                     job_info = self.jobs_in_prog[job['job_id']]
-                    job_info['client'].send_msg(msg)
+
+                    # Pass the result on to the client.
+                    # If the client disconnects, just do nothing and delete the returned result.
+                    try:
+                        job_info['client'].send_msg(msg)
+                    except:
+                        pass
                     del self.jobs_in_prog[job['job_id']]
+                    self.assigned_jobs[worker].remove(job_info)
             except:
-                # Kill the thread if the worker or client disconnects.
+                # If the worker disconnects, resubmit all jobs that this worker was working on.
+                for job_info in self.assigned_jobs[worker]:
+                    self.job_queue.appendleft(job_info)
+
+                del self.assigned_jobs[worker]
+
+                # Kill the thread if the worker disconnects.
                 break
